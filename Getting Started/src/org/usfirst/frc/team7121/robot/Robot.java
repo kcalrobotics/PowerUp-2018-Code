@@ -9,16 +9,7 @@
 //getting started
 package org.usfirst.frc.team7121.robot;
 
-import edu.wpi.first.wpilibj.CameraServer;
-import edu.wpi.first.wpilibj.Compressor;
-import edu.wpi.first.wpilibj.DigitalInput;
-import edu.wpi.first.wpilibj.IterativeRobot;
-import edu.wpi.first.wpilibj.Joystick;
-import edu.wpi.first.wpilibj.Solenoid;
-import edu.wpi.first.wpilibj.Spark;
-import edu.wpi.first.wpilibj.SpeedControllerGroup;
-import edu.wpi.first.wpilibj.Talon;
-import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.wpilibj.*;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
@@ -41,58 +32,56 @@ import com.ctre.phoenix.motorcontrol.can.*;
  * directory.
  */
 public class Robot extends IterativeRobot {
-	
-	 
-	   
-	    private DifferentialDrive m_robotDrive = new DifferentialDrive(new Spark(0), new Spark(1));
+    boolean _lastButton1 = false;
 	
 	private Joystick m_stick = new Joystick(0);
 	private Timer m_timer = new Timer();
-	TalonSRX Arm = new TalonSRX(1);
-	TalonSRX Wrist = new TalonSRX(2);
-	
-	StringBuilder _sb = new StringBuilder();
-	 private Solenoid s1,s2; 
-	 DigitalInput forwardLimitSwitch, reverseLimitSwitch;
-	 
-	
-		int _loops = 0;
-		boolean _lastButton1 = false;
-		boolean _lastButton3 = false;
+    boolean _lastButton3 = false;
+    /* save the target position to servo to */
+    double targetPositionRotations;
+    double targetPositionRotations2;
+	private DifferentialDrive m_robotDrive = new DifferentialDrive(new Spark(0), new Spark(1));
+    private TalonSRX Arm = new TalonSRX(1);
+    private TalonSRX Wrist = new TalonSRX(2);
+    private StringBuilder _sb = new StringBuilder();
+    private Compressor air;
+    private Solenoid s1,s2;
+    private DigitalInput forwardLimitSwitch, reverseLimitSwitch;
+    private int _loops = 0;
 		
-		/** save the target position to servo to */
-		double targetPositionRotations;
-		double targetPositionRotations2;
-		
-	 
 	/**
 	 * This function is run when the robot is first started up and should be
 	 * used for any initialization code.
 	 */
 	@Override
 	public void robotInit() {
-		 forwardLimitSwitch = new DigitalInput(1);	//switch top
-         reverseLimitSwitch = new DigitalInput(2);  //switch bottom
-      
-         
-        
-     
-    
-         
-	Compressor air = new Compressor();
-	air.start();
-	  s1 = new Solenoid(1);                        // Solenoid port
-      s2 = new Solenoid(2);
+		forwardLimitSwitch = new DigitalInput(1);	//switch top
+        reverseLimitSwitch = new DigitalInput(2);  //switch bottom
+
+        // Get the compressor
+        air = new Compressor();
+        air.start();
+        s1 = new Solenoid(1);                        // Solenoid port
+        s2 = new Solenoid(2);
+        // Get the Joystick
+        m_stick = new Joystick(0);
    
+        try {
+            CameraServer.getInstance().startAutomaticCapture(0);
+        } catch (NullPointerException e) {
+            System.out.println("Camera 0 not found...skipping.");
+        }
+        try {
+            CameraServer.getInstance().startAutomaticCapture(1);
+        } catch (NullPointerException e) {
+            System.out.println("Camera 1 not found...skipping.");
+        }
 
-  	CameraServer.getInstance().startAutomaticCapture(0);
-	CameraServer.getInstance().startAutomaticCapture(1);
+
+	    // when robot starts, leave arm motor off
 
 
-	// when robot starts, leave arm motor off
-
-
-	air.setClosedLoopControl(true);
+	    air.setClosedLoopControl(true);
 	
 	
 	
@@ -141,6 +130,25 @@ public class Robot extends IterativeRobot {
 		/* set the quadrature (relative) sensor to match absolute */
 		Arm.setSelectedSensorPosition(absolutePosition, Constants.kPIDLoopIdx, Constants.kTimeoutMs);
 	}
+
+	@Override
+    public void disabledInit() {
+
+    }
+
+    @Override
+    public void disabledPeriodic() {
+	    if (Constants.kGameSpecificMessage.matches("7121")) {
+	        String message = DriverStation.getInstance().getGameSpecificMessage();
+            // Wait 5ms after asking for the data - this way we don't spam too frequently.
+            Timer.delay(0.005);
+	        if (message.length() == 3) {
+	            Constants.kGameSpecificMessage = message;
+	            System.out.println("NEW MESSAGE: " + Constants.kGameSpecificMessage);
+            }
+
+        }
+    }
 		
 	
 
@@ -152,19 +160,26 @@ public class Robot extends IterativeRobot {
 		m_timer.reset();
 		m_timer.start();
 		
-		m_stick = new Joystick(0);
+
 	}
 
 	/**
 	 * This function is called periodically during autonomous.
+     * As of this version, ALWAYS SET UP IN FRONT OF THE LEFT SWITCH!
 	 */
 	@Override
 	public void autonomousPeriodic() {
-		// Drive for 2 seconds
+		commonLoop();
+	    // Drive for 2 seconds
 		if (m_timer.get() < 2.0) {
 			m_robotDrive.arcadeDrive(-0.5, 0.0); // drive forwards half speed
 		} else {
 			m_robotDrive.stopMotor(); // stop robot
+
+            // If the Left switch matches my color, then drop the cube in!
+            if (Constants.kGameSpecificMessage.charAt(0) == 'L') {
+                // @TODO: Add code to drop in the cube
+            }
 		}
 	}
 
@@ -182,42 +197,47 @@ public class Robot extends IterativeRobot {
 	public void teleopPeriodic() {
 		
 		commonLoop();
+		teleopLoop();
 	}
-	void commonLoop() {
-		
-	m_robotDrive.arcadeDrive(m_stick.getY(), m_stick.getX());
-		
-		SmartDashboard.putNumber("SensorVel", Arm.getSelectedSensorVelocity(Constants.kPIDLoopIdx));
-		SmartDashboard.putNumber("SensorPos",Arm.getSelectedSensorPosition(Constants.kPIDLoopIdx));
-		SmartDashboard.putNumber("MotorOutputPercent", Arm.getMotorOutputPercent());
-		SmartDashboard.putNumber("ClosedLoopError", Arm.getClosedLoopError(Constants.kPIDLoopIdx));
-		SmartDashboard.putNumber("ClosedLoopTarget", Arm.getClosedLoopTarget(Constants.kPIDLoopIdx));
-		/* get gamepad axis */
+	private void commonLoop() {
+        SmartDashboard.putNumber("SensorVel", Arm.getSelectedSensorVelocity(Constants.kPIDLoopIdx));
+        SmartDashboard.putNumber("SensorPos", Arm.getSelectedSensorPosition(Constants.kPIDLoopIdx));
+        SmartDashboard.putNumber("MotorOutputPercent", Arm.getMotorOutputPercent());
+        SmartDashboard.putNumber("ClosedLoopError", Arm.getClosedLoopError(Constants.kPIDLoopIdx));
+        SmartDashboard.putNumber("ClosedLoopTarget", Arm.getClosedLoopTarget(Constants.kPIDLoopIdx));
+    }
+
+    private void teleopLoop() {
+
+        m_robotDrive.arcadeDrive(m_stick.getY(), m_stick.getX());
+	    /* get gamepad axis */
 		double rightYstick = m_stick.getRawAxis(5);
 		/* calculate the percent motor output */
 		double motorOutput = Arm.getMotorOutputPercent();
 		boolean button1 = m_stick.getRawButton(1);
 		boolean button2 = m_stick.getRawButton(7);
 		boolean button3 = m_stick.getRawButton(2);
+
+		boolean openGripperButton = m_stick.getRawButton(5);
+		boolean closeGripperButton = m_stick.getRawButton(6);
+		boolean raiseWristButton = m_stick.getRawButton(4);
+		boolean lowerWristButton = m_stick.getRawButton(3);
 		/* deadband gamepad */
 		if (Math.abs(rightYstick) < 0.10) {
 			/* within 10% of zero */
 			rightYstick = 0;
 
 		}
-
 		
-		//commit out the button control for wrist
-		
-		if (m_stick.getRawButton(4) == true){
+		if (raiseWristButton){
 			Wrist.set(ControlMode.PercentOutput, 1);
 		}
-			else if (m_stick.getRawButton(3) == true){
+			else if (lowerWristButton){
 				Wrist.set(ControlMode.PercentOutput, -1);
 		} else {
 			Wrist.set(ControlMode.PercentOutput, 0);
 		}
-	/**
+	    /*
 		// run arm motor 
 				if (m_stick.getRawButton(4) == true )  //&& forwardLimitSwitch.get()==false
 				{
@@ -290,10 +310,10 @@ public class Robot extends IterativeRobot {
 			_sb.append("u"); /* units */
 		}
 		/*
-		 * print every ten loops, printing too much too fast is generally bad
+		 * print every 100 loops, printing too much too fast is generally bad
 		 * for performance
 		 */
-		if (++_loops >= 10) {
+		if (++_loops >= 100) {
 			_loops = 0;
 			System.out.println(_sb.toString());
 		}
@@ -303,19 +323,12 @@ public class Robot extends IterativeRobot {
 		_lastButton1 = button1;
 		_lastButton3 = button3;
 	
-	
-
-				
-				 if(m_stick.getRawButton(5) == true)  //open gripper
-			        {
-			              s1.set(true);
-			              s2.set(false);
-			         }
-			         if(m_stick.getRawButton(6) == true)  //close gripper
-			         {
-			              s1.set(false);
-			              s2.set(true);
-			          }
+		if(openGripperButton) {  //open gripper
+            openGripper();
+		}
+		if(closeGripperButton) {  //close gripper
+            closeGripper();
+        }
 	}
 
 	/**
@@ -324,4 +337,14 @@ public class Robot extends IterativeRobot {
 	@Override
 	public void testPeriodic() {
 	}
+
+	private void openGripper() {
+	    s1.set(true);
+	    s2.set(false);
+    }
+
+    private void closeGripper() {
+	    s1.set(false);
+	    s2.set(true);
+    }
 }

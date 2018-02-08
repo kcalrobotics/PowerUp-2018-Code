@@ -1,6 +1,9 @@
 package org.usfirst.frc.team7121.robot;
 
 public class Constants {
+	// This String holds the game specific constants ("LLL", "RLR", etc...)
+	public static String kGameSpecificMessage = "7121";
+
 	/**
 	 * Which PID slot to pull gains from. Starting 2018, you can choose from
 	 * 0,1,2 or 3. Only the first two (0,1) are visible in web-based
@@ -21,10 +24,10 @@ public class Constants {
 	public static final int kTimeoutMs = 10;
 
 
-/* choose so that Talon does not report sensor out of phase */
-public static boolean kSensorPhase = true;
+	/* choose so that Talon does not report sensor out of phase */
+	public static boolean kSensorPhase = true;
 
-/* choose based on what direction you want to be positive,
+	/* choose based on what direction you want to be positive,
 	this does not affect motor invert. */
-public static boolean kMotorInvert = false;
+	public static boolean kMotorInvert = false;
 }
