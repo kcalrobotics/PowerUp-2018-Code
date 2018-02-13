@@ -20,6 +20,7 @@ import java.util.concurrent.TimeUnit;
 import com.ctre.phoenix.motorcontrol.can.TalonSRX;
 import com.ctre.phoenix.motorcontrol.ControlMode;
 import com.ctre.phoenix.motorcontrol.FeedbackDevice;
+import com.ctre.phoenix.motorcontrol.NeutralMode;
 import com.ctre.phoenix.motorcontrol.StatusFrameEnhanced;
 import com.ctre.phoenix.motorcontrol.can.*;
 
@@ -88,11 +89,11 @@ public class Robot extends IterativeRobot {
 
 	
 				/* choose the sensor and sensor direction */
-		Arm.configSelectedFeedbackSensor(FeedbackDevice.CTRE_MagEncoder_Relative, Constants.kPIDLoopIdx,
+		Arm.configSelectedFeedbackSensor(FeedbackDevice.CTRE_MagEncoder_Absolute, Constants.kPIDLoopIdx,
 				Constants.kTimeoutMs);
 
 		/* choose to ensure sensor is positive when output is positive */
-		Arm.setSensorPhase(Constants.kSensorPhase);
+		//Arm.setSensorPhase(Constants.kSensorPhase);
 
 		/* choose based on what direction you want forward/positive to be.
 		 * This does not affect sensor phase. */ 
@@ -108,27 +109,51 @@ public class Robot extends IterativeRobot {
 		 * neutral within this range. See Table in Section 17.2.1 for native
 		 * units per rotation.
 		 */
-		Arm.configAllowableClosedloopError(0, Constants.kPIDLoopIdx, Constants.kTimeoutMs);
+		Arm.configAllowableClosedloopError(0, 100, Constants.kTimeoutMs);
 
 		/* set closed loop gains in slot0, typically kF stays zero. */
 		Arm.config_kF(Constants.kPIDLoopIdx, 0.0, Constants.kTimeoutMs);
-		Arm.config_kP(Constants.kPIDLoopIdx, 0.1, Constants.kTimeoutMs);
+		Arm.config_kP(Constants.kPIDLoopIdx, 1, Constants.kTimeoutMs);
 		Arm.config_kI(Constants.kPIDLoopIdx, 0.0, Constants.kTimeoutMs);
 		Arm.config_kD(Constants.kPIDLoopIdx, 0.0, Constants.kTimeoutMs);
+		
+		Arm.setNeutralMode(NeutralMode.Brake);
+		
+		// Zero the Sensor Position
+		Arm.setSelectedSensorPosition(0, 0, 10);
+		
+		Wrist.configSelectedFeedbackSensor(FeedbackDevice.CTRE_MagEncoder_Absolute, Constants.kPIDLoopIdx,
+				Constants.kTimeoutMs);
 
+		/* choose to ensure sensor is positive when output is positive */
+		//Wrist.setSensorPhase(Constants.kSensorPhase);
+
+		/* choose based on what direction you want forward/positive to be.
+		 * This does not affect sensor phase. */ 
+		//Wrist.setInverted(Constants.kMotorInvert);
+
+		/* set the peak and nominal outputs, 12V means full */
+		Wrist.configNominalOutputForward(0, Constants.kTimeoutMs);
+		Wrist.configNominalOutputReverse(0, Constants.kTimeoutMs);
+		Wrist.configPeakOutputForward(1, Constants.kTimeoutMs);
+		Wrist.configPeakOutputReverse(-1, Constants.kTimeoutMs);
 		/*
-		 * lets grab the 360 degree position of the MagEncoder's absolute
-		 * position, and initially set the relative sensor to match.
+		 * set the allowable closed-loop error, Closed-Loop output will be
+		 * neutral within this range. See Table in Section 17.2.1 for native
+		 * units per rotation.
 		 */
-		int absolutePosition = Arm.getSensorCollection().getPulseWidthPosition();
-		/* mask out overflows, keep bottom 12 bits */
-		absolutePosition &= 0xFFF;
-		if (Constants.kSensorPhase)
-			absolutePosition *= -1;
-		if (Constants.kMotorInvert)
-			absolutePosition *= -1;
-		/* set the quadrature (relative) sensor to match absolute */
-		Arm.setSelectedSensorPosition(absolutePosition, Constants.kPIDLoopIdx, Constants.kTimeoutMs);
+		Wrist.configAllowableClosedloopError(0, 100, Constants.kTimeoutMs);
+
+		/* set closed loop gains in slot0, typically kF stays zero. */
+		Wrist.config_kF(Constants.kPIDLoopIdx, 0.0, Constants.kTimeoutMs);
+		Wrist.config_kP(Constants.kPIDLoopIdx, 1, Constants.kTimeoutMs);
+		Wrist.config_kI(Constants.kPIDLoopIdx, 0.0, Constants.kTimeoutMs);
+		Wrist.config_kD(Constants.kPIDLoopIdx, 0.0, Constants.kTimeoutMs);
+		
+		Wrist.setNeutralMode(NeutralMode.Brake);
+		
+		// Zero the Sensor Position
+		Wrist.setSelectedSensorPosition(0, 0, 10);
 	}
 
 	@Override
@@ -251,6 +276,9 @@ public class Robot extends IterativeRobot {
 		boolean closeGripperButton = m_stick.getRawButton(6);
 		boolean raiseWristButton = m_stick.getRawButton(4);
 		boolean lowerWristButton = m_stick.getRawButton(3);
+		boolean raiseArmThenWristButton = false; //@TODO: Pick a button
+		boolean lowerWristThenArmButton = false; //@TODO: Pick a button
+		boolean scoreSwitch = false; //@TODO: Pick a button
 		/* deadband gamepad */
 		if (Math.abs(rightYstick) < 0.10) {
 			/* within 10% of zero */
@@ -304,13 +332,25 @@ public class Robot extends IterativeRobot {
 		_sb.append("\tpos:");
 		_sb.append(Arm.getSelectedSensorPosition(0));
 		_sb.append("u"); /* units */
+		
+		if (raiseArmThenWristButton) {
+			raiseArmThenWrist();
+		}
+		
+		if (lowerWristThenArmButton) {
+			lowerArmAndWrist();
+		}
+		
+		if (scoreSwitch) {
+			scoreSwitch();
+		}
 
 		/* on button1 press enter closed-loop mode on target position */
 		if (!_lastButton1 && ArmUpButton) {
 			/* Position mode - button just pressed */
 
 			/* 10 Rotations * 4096 u/rev in either direction */
-			targetPositionRotations = 0;
+			targetPositionRotations = Constants.kArmHighSetpoint;
 			Arm.set(ControlMode.Position, targetPositionRotations);
 
 		}
@@ -318,7 +358,7 @@ public class Robot extends IterativeRobot {
 			/* Position mode - button just pressed */
 
 			/* 10 Rotations * 4096 u/rev in either direction */
-			targetPositionRotations = 10000;
+			targetPositionRotations = Constants.kArmLowSetpoint;
 			Arm.set(ControlMode.Position, targetPositionRotations);
 
 		}
@@ -375,5 +415,32 @@ public class Robot extends IterativeRobot {
     private void closeGripper() {
 	    s1.set(false);
 	    s2.set(true);
+    }
+    
+    private void raiseArmThenWrist() {
+    	Arm.set(ControlMode.Position, Constants.kArmHighSetpoint);
+    	if (Arm.getSelectedSensorPosition(0) > Constants.kArmSafeHeight) {
+    		Wrist.set(ControlMode.Position, Constants.kLowWristSetpoint);
+    	} else {
+    		Wrist.set(ControlMode.Position, Constants.kHighWristSetpoint);
+    	}
+    }
+    
+    private void lowerArmAndWrist() {
+    	Wrist.set(ControlMode.Position, Constants.kHighWristSetpoint);
+    	if (Wrist.getSelectedSensorPosition(0) < Constants.kWristSafePosition) {
+    		Arm.set(ControlMode.Position, Constants.kArmLowSetpoint);
+    	} else {
+    		Arm.set(ControlMode.Position, Constants.kArmHighSetpoint);
+    	}
+    }
+    
+    private void scoreSwitch() {
+    	Wrist.set(ControlMode.Position, Constants.kMidWristSetpoint);
+    	if (Wrist.getClosedLoopError(0) < Constants.kWristAllowableError) {
+    		openGripper();
+    	} else {
+    		closeGripper();
+    	}
     }
 }
