@@ -8,7 +8,7 @@
 
 //getting started
 package org.usfirst.frc.team7121.robot;
-//This is a silly comment
+
 import edu.wpi.first.wpilibj.*;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -118,7 +118,7 @@ public class Robot extends IterativeRobot {
 
 		/*
 		 * lets grab the 360 degree position of the MagEncoder's absolute
-		 * position, and intitally set the relative sensor to match.
+		 * position, and initially set the relative sensor to match.
 		 */
 		int absolutePosition = Arm.getSensorCollection().getPulseWidthPosition();
 		/* mask out overflows, keep bottom 12 bits */
@@ -176,12 +176,41 @@ public class Robot extends IterativeRobot {
 		} else {
 			m_robotDrive.stopMotor(); // stop robot
 
+            }
             // If the Left switch matches my color, then drop the cube in!
             if (Constants.kGameSpecificMessage.charAt(0) == 'L') {
                 // @TODO: Add code to drop in the cube
-            }
-		}
-	}
+            	
+            	if (m_timer.get() >3&&m_timer.get()<3.2  ) 
+            	{	Wrist.set(ControlMode.PercentOutput, 1);
+    		}
+    	
+    		} if  (m_timer.get()>3.2 ) {
+    			Wrist.set(ControlMode.PercentOutput, 0);
+    			
+    			targetPositionRotations = 500000;
+    			Arm.set(ControlMode.Position, targetPositionRotations);
+    		}
+    	
+    		if  (m_timer.get()>7.2 ) {
+    		
+    			
+    			targetPositionRotations = 0;
+    			Arm.set(ControlMode.Position, targetPositionRotations);
+    		}
+    	
+
+    			
+            	if (m_timer.get()>3.2)
+            	{  s1.set(true);
+        	    s2.set(false);
+            	}
+            	}
+            
+	
+            
+		
+	
 
 	/**
 	 * This function is called once each time the robot enters teleoperated mode.
@@ -214,9 +243,9 @@ public class Robot extends IterativeRobot {
 		double rightYstick = m_stick.getRawAxis(5);
 		/* calculate the percent motor output */
 		double motorOutput = Arm.getMotorOutputPercent();
-		boolean button1 = m_stick.getRawButton(1);
-		boolean button2 = m_stick.getRawButton(7);
-		boolean button3 = m_stick.getRawButton(2);
+		boolean ArmUpButton = m_stick.getRawButton(1);
+		boolean ArmOverrideButton = m_stick.getRawButton(7);
+		boolean ArmDownButton = m_stick.getRawButton(2);
 
 		boolean openGripperButton = m_stick.getRawButton(5);
 		boolean closeGripperButton = m_stick.getRawButton(6);
@@ -277,7 +306,7 @@ public class Robot extends IterativeRobot {
 		_sb.append("u"); /* units */
 
 		/* on button1 press enter closed-loop mode on target position */
-		if (!_lastButton1 && button1) {
+		if (!_lastButton1 && ArmUpButton) {
 			/* Position mode - button just pressed */
 
 			/* 10 Rotations * 4096 u/rev in either direction */
@@ -285,16 +314,16 @@ public class Robot extends IterativeRobot {
 			Arm.set(ControlMode.Position, targetPositionRotations);
 
 		}
-		if (!_lastButton3 && button3) {
+		if (!_lastButton3 && ArmDownButton) {
 			/* Position mode - button just pressed */
 
 			/* 10 Rotations * 4096 u/rev in either direction */
-			targetPositionRotations = 5000;
+			targetPositionRotations = 10000;
 			Arm.set(ControlMode.Position, targetPositionRotations);
 
 		}
 		/* on button2 just straight drive */
-		if (button2) {
+		if (ArmOverrideButton) {
 			/* Percent voltage mode */
 			Arm.set(ControlMode.PercentOutput, rightYstick);
 		}
@@ -320,8 +349,8 @@ public class Robot extends IterativeRobot {
 	
 		_sb.setLength(0);
 		/* save button state for on press detect */
-		_lastButton1 = button1;
-		_lastButton3 = button3;
+		_lastButton1 = ArmUpButton;
+		_lastButton3 = ArmDownButton;
 	
 		if(openGripperButton) {  //open gripper
             openGripper();
