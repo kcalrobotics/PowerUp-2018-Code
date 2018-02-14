@@ -93,7 +93,7 @@ public class Robot extends IterativeRobot {
 				Constants.kTimeoutMs);
 
 		/* choose to ensure sensor is positive when output is positive */
-		//Arm.setSensorPhase(Constants.kSensorPhase);
+		Arm.setSensorPhase(Constants.kSensorPhase);
 
 		/* choose based on what direction you want forward/positive to be.
 		 * This does not affect sensor phase. */ 
@@ -109,11 +109,11 @@ public class Robot extends IterativeRobot {
 		 * neutral within this range. See Table in Section 17.2.1 for native
 		 * units per rotation.
 		 */
-		Arm.configAllowableClosedloopError(0, 100, Constants.kTimeoutMs);
+		Arm.configAllowableClosedloopError(0, 500, Constants.kTimeoutMs);
 
 		/* set closed loop gains in slot0, typically kF stays zero. */
 		Arm.config_kF(Constants.kPIDLoopIdx, 0.0, Constants.kTimeoutMs);
-		Arm.config_kP(Constants.kPIDLoopIdx, 1, Constants.kTimeoutMs);
+		Arm.config_kP(Constants.kPIDLoopIdx, 0.1, Constants.kTimeoutMs);
 		Arm.config_kI(Constants.kPIDLoopIdx, 0.0, Constants.kTimeoutMs);
 		Arm.config_kD(Constants.kPIDLoopIdx, 0.0, Constants.kTimeoutMs);
 		
@@ -146,7 +146,7 @@ public class Robot extends IterativeRobot {
 
 		/* set closed loop gains in slot0, typically kF stays zero. */
 		Wrist.config_kF(Constants.kPIDLoopIdx, 0.0, Constants.kTimeoutMs);
-		Wrist.config_kP(Constants.kPIDLoopIdx, 1, Constants.kTimeoutMs);
+		Wrist.config_kP(Constants.kPIDLoopIdx, 0.1, Constants.kTimeoutMs);
 		Wrist.config_kI(Constants.kPIDLoopIdx, 0.0, Constants.kTimeoutMs);
 		Wrist.config_kD(Constants.kPIDLoopIdx, 0.0, Constants.kTimeoutMs);
 		
@@ -332,7 +332,7 @@ public class Robot extends IterativeRobot {
 		_sb.append("\tpos:");
 		_sb.append(Arm.getSelectedSensorPosition(0));
 		_sb.append("u"); /* units */
-		
+	
 		if (raiseArmThenWristButton) {
 			raiseArmThenWrist();
 		}
@@ -417,6 +417,7 @@ public class Robot extends IterativeRobot {
 	    s2.set(true);
     }
     
+   
     private void raiseArmThenWrist() {
     	Arm.set(ControlMode.Position, Constants.kArmHighSetpoint);
     	if (Arm.getSelectedSensorPosition(0) > Constants.kArmSafeHeight) {
@@ -442,5 +443,7 @@ public class Robot extends IterativeRobot {
     	} else {
     		closeGripper();
     	}
+    	
     }
-}
+    }
+
